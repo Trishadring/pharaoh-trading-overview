@@ -14,10 +14,16 @@ public sealed class Plugin : BaseUnityPlugin
 {
     internal const string PluginGuid = "net.tdring.pharaoh.tradingoverview";
     internal const string PluginName = "Trading Overview";
-    internal const string PluginVersion = "1.0.0";
+    internal const string PluginVersion = "1.1.0";
 
     private static ManualLogSource log;
     private static bool warned;
+    private static readonly HashSet<int> AdjustedControls = new HashSet<int>();
+
+    private const string ExportLabelName = "TradingOverview.Exported";
+    private const string ImportLabelName = "TradingOverview.Imported";
+    private const string ExportHeaderName = "TradingOverview.ExportedHeader";
+    private const string ImportHeaderName = "TradingOverview.ImportedHeader";
 
     private void Awake()
     {
@@ -39,13 +45,19 @@ public sealed class Plugin : BaseUnityPlugin
         CommerceRow __instance,
         Good good,
         GoodData goodData,
-        TextMeshProUGUI ____quantityText)
+        TextMeshProUGUI ____quantityText,
+        TMP_Dropdown ____dropdownStatus,
+        Button ____openTradeButton)
     {
         try
         {
             var totals = GetTotals(good, goodData);
-            var label = GetOrCreateLabel(__instance, ____quantityText);
-            label.text = $"Exported: {totals.Exported:N0} / {totals.MaxExport:N0}    Imported: {totals.Imported:N0} / {totals.MaxImport:N0}";
+            var exported = GetOrCreateColumn(__instance, ____quantityText, ExportLabelName, 0.275f, 0.365f);
+            var imported = GetOrCreateColumn(__instance, ____quantityText, ImportLabelName, 0.365f, 0.455f);
+            exported.text = $"{totals.Exported:N0} / {totals.MaxExport:N0}";
+            imported.text = $"{totals.Imported:N0} / {totals.MaxImport:N0}";
+            CompactStatusControl(____dropdownStatus?.transform as RectTransform);
+            CompactStatusControl(____openTradeButton?.transform as RectTransform);
         }
         catch (Exception exception)
         {
@@ -53,6 +65,66 @@ public sealed class Plugin : BaseUnityPlugin
             {
                 warned = true;
                 log?.LogWarning($"Trading Overview could not update a Commerce row; the base UI is unchanged: {exception}");
+            }
+        }
+    }
+
+    [HarmonyPatch(typeof(CommerceOverseer), "Refresh")]
+    [HarmonyPostfix]
+    private static void CommerceOverseerRefreshPostfix(
+        CommerceOverseer __instance,
+        Transform ____rowContainer,
+        Dictionary<Good, CommerceRow> ____rowByGood)
+    {
+        try
+        {
+            CommerceRow firstRow = null;
+            foreach (var row in ____rowByGood.Values)
+            {
+                if (row != null && row.gameObject.activeSelf)
+                {
+                    firstRow = row;
+                    break;
+                }
+            }
+
+            if (firstRow == null)
+            {
+                return;
+            }
+
+            var status = firstRow.TradeRuleSelector?.transform as RectTransform;
+            var exported = firstRow.transform.Find(ExportLabelName) as RectTransform;
+            var imported = firstRow.transform.Find(ImportLabelName) as RectTransform;
+            if (status == null || exported == null || imported == null)
+            {
+                return;
+            }
+
+            var header = FindStatusHeader(__instance, ____rowContainer, status);
+            if (header == null)
+            {
+                return;
+            }
+
+            foreach (var text in __instance.GetComponentsInChildren<TextMeshProUGUI>(true))
+            {
+                if (!text.transform.IsChildOf(____rowContainer) && Math.Abs(text.transform.position.y - header.transform.position.y) < 5f)
+                {
+                    text.fontSize = Math.Min(text.fontSize, 20f);
+                }
+            }
+
+            MoveHeader(header.rectTransform, 45f);
+            CreateOrUpdateHeader(header, ExportHeaderName, "Exported", exported);
+            CreateOrUpdateHeader(header, ImportHeaderName, "Imported", imported);
+        }
+        catch (Exception exception)
+        {
+            if (!warned)
+            {
+                warned = true;
+                log?.LogWarning($"Trading Overview could not update the Commerce headers; the base UI is unchanged: {exception}");
             }
         }
     }
@@ -105,34 +177,115 @@ public sealed class Plugin : BaseUnityPlugin
             routes);
     }
 
-    private static TextMeshProUGUI GetOrCreateLabel(CommerceRow row, TextMeshProUGUI quantityText)
+    private static TextMeshProUGUI GetOrCreateColumn(
+        CommerceRow row,
+        TextMeshProUGUI quantityText,
+        string name,
+        float anchorMin,
+        float anchorMax)
     {
-        const string labelName = "TradingOverview.TradeTotals";
-        var container = quantityText.transform.parent;
-        var existing = container.Find(labelName);
+        var existing = row.transform.Find(name);
         if (existing != null)
         {
             return existing.GetComponent<TextMeshProUGUI>();
         }
 
-        var label = Instantiate(quantityText, container);
-        label.name = labelName;
+        var label = Instantiate(quantityText, row.transform);
+        label.name = name;
         label.text = string.Empty;
         label.enableWordWrapping = false;
-        label.overflowMode = TextOverflowModes.Overflow;
+        label.overflowMode = TextOverflowModes.Ellipsis;
         label.raycastTarget = false;
-        label.alignment = TextAlignmentOptions.MidlineLeft;
+        label.alignment = TextAlignmentOptions.Midline;
         label.enableAutoSizing = true;
-        label.fontSizeMin = 10f;
+        label.fontSizeMin = 9f;
+        label.fontSizeMax = Math.Min(label.fontSizeMax, 15f);
 
         var labelTransform = label.rectTransform;
-        labelTransform.SetSiblingIndex(quantityText.rectTransform.GetSiblingIndex() + 1);
-        labelTransform.sizeDelta = new Vector2(360f, labelTransform.sizeDelta.y);
+        labelTransform.anchorMin = new Vector2(anchorMin, 0f);
+        labelTransform.anchorMax = new Vector2(anchorMax, 1f);
+        labelTransform.pivot = new Vector2(0.5f, 0.5f);
+        labelTransform.offsetMin = new Vector2(2f, 0f);
+        labelTransform.offsetMax = new Vector2(-2f, 0f);
 
         var layout = label.GetComponent<LayoutElement>() ?? label.gameObject.AddComponent<LayoutElement>();
-        layout.minWidth = 300f;
-        layout.preferredWidth = 360f;
-        layout.flexibleWidth = 0f;
+        layout.ignoreLayout = true;
         return label;
+    }
+
+    private static void CompactStatusControl(RectTransform control)
+    {
+        if (control == null || !AdjustedControls.Add(control.GetInstanceID()))
+        {
+            return;
+        }
+
+        var width = control.rect.width;
+        control.SetSizeWithCurrentAnchors(RectTransform.Axis.Horizontal, Math.Max(210f, width - 90f));
+        control.anchoredPosition += new Vector2(45f, 0f);
+
+        foreach (var text in control.GetComponentsInChildren<TextMeshProUGUI>(true))
+        {
+            text.enableAutoSizing = true;
+            text.fontSizeMin = 10f;
+            text.fontSizeMax = Math.Min(text.fontSizeMax, 15f);
+        }
+    }
+
+    private static TextMeshProUGUI FindStatusHeader(
+        CommerceOverseer overseer,
+        Transform rowContainer,
+        RectTransform status)
+    {
+        TextMeshProUGUI closest = null;
+        var distance = float.MaxValue;
+        foreach (var text in overseer.GetComponentsInChildren<TextMeshProUGUI>(true))
+        {
+            if (text.name.StartsWith("TradingOverview.", StringComparison.Ordinal)
+                || text.transform.IsChildOf(rowContainer)
+                || text.transform.position.y <= status.position.y)
+            {
+                continue;
+            }
+
+            var candidateDistance = Math.Abs(text.transform.position.x - status.position.x);
+            if (candidateDistance < distance)
+            {
+                distance = candidateDistance;
+                closest = text;
+            }
+        }
+
+        return closest;
+    }
+
+    private static void CreateOrUpdateHeader(
+        TextMeshProUGUI template,
+        string name,
+        string text,
+        RectTransform column)
+    {
+        var parent = template.transform.parent;
+        var existing = parent.Find(name)?.GetComponent<TextMeshProUGUI>();
+        var header = existing ?? Instantiate(template, parent);
+        header.name = name;
+        header.text = text;
+        header.fontSize = Math.Min(header.fontSize, 20f);
+        header.enableAutoSizing = true;
+        header.fontSizeMin = 12f;
+        header.alignment = TextAlignmentOptions.Midline;
+        header.raycastTarget = false;
+        header.transform.position = new Vector3(column.position.x, template.transform.position.y, template.transform.position.z);
+        header.rectTransform.SetSizeWithCurrentAnchors(RectTransform.Axis.Horizontal, column.rect.width);
+    }
+
+    private static void MoveHeader(RectTransform header, float amount)
+    {
+        if (!AdjustedControls.Add(header.GetInstanceID()))
+        {
+            return;
+        }
+
+        header.anchoredPosition += new Vector2(amount, 0f);
     }
 }
