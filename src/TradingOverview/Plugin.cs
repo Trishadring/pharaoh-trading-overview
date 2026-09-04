@@ -15,12 +15,11 @@ public sealed class Plugin : BaseUnityPlugin
 {
     internal const string PluginGuid = "net.tdring.pharaoh.tradingoverview";
     internal const string PluginName = "Trading Overview";
-    internal const string PluginVersion = "1.6.0";
+    internal const string PluginVersion = "1.7.0";
 
     private static ManualLogSource log;
     private static bool warned;
-    private static bool typographyLogged;
-    private static bool layoutLogScheduled;
+    private static bool layoutScheduled;
     private static Plugin instance;
 
     private const string ExportLabelName = "TradingOverview.Exported";
@@ -64,8 +63,6 @@ public sealed class Plugin : BaseUnityPlugin
                 obsoleteImportColumn.gameObject.SetActive(false);
             }
 
-            PinColumn(____importText.rectTransform, 0.82f, 0.91f);
-            PinColumn(____exportText.rectTransform, 0.91f, 1f);
         }
         catch (Exception exception)
         {
@@ -101,8 +98,6 @@ public sealed class Plugin : BaseUnityPlugin
                 return;
             }
 
-            LogTypography(__instance);
-
             var status = firstRow.TradeRuleSelector?.transform as RectTransform;
             var tradeVolume = firstRow.transform.Find(ExportLabelName) as RectTransform;
             if (status == null || tradeVolume == null)
@@ -126,8 +121,7 @@ public sealed class Plugin : BaseUnityPlugin
             }
 
             CreateOrUpdateHeader(header, TradeVolumeHeaderName, "Trade Volume (Year / Max)", tradeVolume);
-            AlignPriceHeaders(__instance, ____rowContainer, header, firstRow);
-            ScheduleLayoutLog(__instance, ____rowContainer, firstRow);
+            ScheduleLayout(__instance, ____rowContainer, ____rowByGood, header);
         }
         catch (Exception exception)
         {
@@ -243,17 +237,6 @@ public sealed class Plugin : BaseUnityPlugin
         return imported.Length == 0 ? exported : exported + "\n" + imported;
     }
 
-    private static void PinColumn(RectTransform column, float anchorMin, float anchorMax)
-    {
-        column.anchorMin = new Vector2(anchorMin, 0f);
-        column.anchorMax = new Vector2(anchorMax, 1f);
-        column.pivot = new Vector2(0.5f, 0.5f);
-        column.offsetMin = new Vector2(2f, 0f);
-        column.offsetMax = new Vector2(-2f, 0f);
-        var layout = column.GetComponent<LayoutElement>() ?? column.gameObject.AddComponent<LayoutElement>();
-        layout.ignoreLayout = true;
-    }
-
     private static TextMeshProUGUI FindStatusHeader(
         CommerceOverseer overseer,
         Transform rowContainer,
@@ -317,19 +300,11 @@ public sealed class Plugin : BaseUnityPlugin
         header.rectTransform.SetSizeWithCurrentAnchors(RectTransform.Axis.Horizontal, column.rect.width);
     }
 
-    private static void AlignPriceHeaders(
+    private static List<TextMeshProUGUI> FindPriceHeaders(
         CommerceOverseer overseer,
         Transform rowContainer,
-        TextMeshProUGUI statusHeader,
-        CommerceRow row)
+        TextMeshProUGUI statusHeader)
     {
-        var importText = AccessTools.Field(typeof(CommerceRow), "_importText")?.GetValue(row) as TextMeshProUGUI;
-        var exportText = AccessTools.Field(typeof(CommerceRow), "_exportText")?.GetValue(row) as TextMeshProUGUI;
-        if (importText == null || exportText == null)
-        {
-            return;
-        }
-
         var priceHeaders = new List<TextMeshProUGUI>();
         foreach (var text in overseer.GetComponentsInChildren<TextMeshProUGUI>(true))
         {
@@ -345,79 +320,88 @@ public sealed class Plugin : BaseUnityPlugin
         }
 
         priceHeaders.Sort((left, right) => left.transform.position.x.CompareTo(right.transform.position.x));
-        if (priceHeaders.Count >= 2)
+        if (priceHeaders.Count > 2)
         {
-            AlignHeader(priceHeaders[priceHeaders.Count - 2].rectTransform, importText.rectTransform);
-            AlignHeader(priceHeaders[priceHeaders.Count - 1].rectTransform, exportText.rectTransform);
+            priceHeaders.RemoveRange(0, priceHeaders.Count - 2);
         }
+
+        return priceHeaders;
     }
 
-    private static void AlignHeader(RectTransform header, RectTransform column)
+    private static void PositionInRow(RectTransform row, RectTransform element, float start, float end)
     {
-        var layout = header.GetComponent<LayoutElement>() ?? header.gameObject.AddComponent<LayoutElement>();
+        var layout = element.GetComponent<LayoutElement>() ?? element.gameObject.AddComponent<LayoutElement>();
         layout.ignoreLayout = true;
-        header.position = new Vector3(column.position.x, header.position.y, header.position.z);
-        header.SetSizeWithCurrentAnchors(RectTransform.Axis.Horizontal, column.rect.width);
+        var corners = new Vector3[4];
+        row.GetWorldCorners(corners);
+        var center = Mathf.Lerp(corners[0].x, corners[3].x, (start + end) / 2f);
+        element.SetSizeWithCurrentAnchors(RectTransform.Axis.Horizontal, row.rect.width * (end - start));
+        element.position = new Vector3(center, element.position.y, element.position.z);
     }
 
-    private static void LogTypography(CommerceOverseer overseer)
+    private static void ScheduleLayout(
+        CommerceOverseer overseer,
+        Transform rowContainer,
+        Dictionary<Good, CommerceRow> rows,
+        TextMeshProUGUI statusHeader)
     {
-        if (typographyLogged)
+        if (layoutScheduled || instance == null)
         {
             return;
         }
 
-        typographyLogged = true;
-        log?.LogInfo("Commerce Overseer typography after all refresh patches:");
-        foreach (var text in overseer.GetComponentsInChildren<TextMeshProUGUI>(false))
-        {
-            var value = text.text?.Replace('\n', ' ').Replace('\r', ' ') ?? string.Empty;
-            log?.LogInfo(
-                $"Typography name='{text.name}', text='{value}', fontSize={text.fontSize:0.##}, "
-                + $"autoSize={text.enableAutoSizing}, min={text.fontSizeMin:0.##}, max={text.fontSizeMax:0.##}");
-        }
+        layoutScheduled = true;
+        instance.StartCoroutine(ApplyLayoutAfterFrame(overseer, rowContainer, rows, statusHeader));
     }
 
-    private static void ScheduleLayoutLog(CommerceOverseer overseer, Transform rowContainer, CommerceRow row)
-    {
-        if (layoutLogScheduled || instance == null)
-        {
-            return;
-        }
-
-        layoutLogScheduled = true;
-        instance.StartCoroutine(LogLayoutAfterFrame(overseer, rowContainer, row));
-    }
-
-    private static IEnumerator LogLayoutAfterFrame(CommerceOverseer overseer, Transform rowContainer, CommerceRow row)
+    private static IEnumerator ApplyLayoutAfterFrame(
+        CommerceOverseer overseer,
+        Transform rowContainer,
+        Dictionary<Good, CommerceRow> rows,
+        TextMeshProUGUI statusHeader)
     {
         yield return new WaitForEndOfFrame();
         Canvas.ForceUpdateCanvases();
 
-        log?.LogInfo("Commerce layout after end-of-frame canvas rebuild:");
-        foreach (var rect in row.GetComponentsInChildren<RectTransform>(true))
+        CommerceRow firstRow = null;
+        foreach (var row in rows.Values)
         {
-            LogRect("row", rect);
+            if (row == null)
+            {
+                continue;
+            }
+
+            firstRow = firstRow ?? row;
+            var rowRect = row.transform as RectTransform;
+            var tradeVolume = row.transform.Find(ExportLabelName) as RectTransform;
+            var importText = AccessTools.Field(typeof(CommerceRow), "_importText")?.GetValue(row) as TextMeshProUGUI;
+            var exportText = AccessTools.Field(typeof(CommerceRow), "_exportText")?.GetValue(row) as TextMeshProUGUI;
+            if (rowRect == null || tradeVolume == null || importText == null || exportText == null)
+            {
+                continue;
+            }
+
+            PositionInRow(rowRect, tradeVolume, 0.73f, 0.82f);
+            PositionInRow(rowRect, importText.rectTransform, 0.82f, 0.91f);
+            PositionInRow(rowRect, exportText.rectTransform, 0.91f, 1f);
         }
 
-        foreach (var text in overseer.GetComponentsInChildren<TextMeshProUGUI>(true))
+        if (firstRow != null)
         {
-            if (!text.transform.IsChildOf(rowContainer))
+            var rowRect = firstRow.transform as RectTransform;
+            var tradeHeader = statusHeader.transform.parent.Find(TradeVolumeHeaderName)?.GetComponent<TextMeshProUGUI>();
+            var priceHeaders = FindPriceHeaders(overseer, rowContainer, statusHeader);
+            if (rowRect != null && tradeHeader != null)
             {
-                LogRect("header", text.rectTransform, text.text);
+                PositionInRow(rowRect, tradeHeader.rectTransform, 0.73f, 0.82f);
+            }
+            if (rowRect != null && priceHeaders.Count == 2)
+            {
+                PositionInRow(rowRect, priceHeaders[0].rectTransform, 0.82f, 0.91f);
+                PositionInRow(rowRect, priceHeaders[1].rectTransform, 0.91f, 1f);
             }
         }
-    }
 
-    private static void LogRect(string group, RectTransform rect, string text = null)
-    {
-        var corners = new Vector3[4];
-        rect.GetWorldCorners(corners);
-        var value = text?.Replace('\n', ' ').Replace('\r', ' ') ?? string.Empty;
-        log?.LogInfo(
-            $"Layout group={group}, name='{rect.name}', parent='{rect.parent?.name}', text='{value}', "
-            + $"world=({corners[0].x:0.##},{corners[0].y:0.##})-({corners[2].x:0.##},{corners[2].y:0.##}), "
-            + $"anchors=({rect.anchorMin.x:0.###},{rect.anchorMin.y:0.###})-({rect.anchorMax.x:0.###},{rect.anchorMax.y:0.###}), "
-            + $"offsets=({rect.offsetMin.x:0.##},{rect.offsetMin.y:0.##})-({rect.offsetMax.x:0.##},{rect.offsetMax.y:0.##})");
+        layoutScheduled = false;
     }
 }

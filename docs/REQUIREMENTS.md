@@ -30,7 +30,6 @@ Stored        Status        Input    Trade Volume     Buyers pay   Sellers recei
 - Do not modify trade behavior, prices, limits, or balance.
 - Reuse the stock row's font and visual styling.
 - Display all Commerce column headers at 16 px.
-- Log the effective Commerce typography once after all refresh patches for compatibility diagnostics.
 - Work independently and alongside the Bug Fixes and Enhancements Package.
 - If data or UI access fails, leave the base UI operational and log a diagnostic warning.
 
