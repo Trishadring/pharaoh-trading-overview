@@ -14,12 +14,11 @@ public sealed class Plugin : BaseUnityPlugin
 {
     internal const string PluginGuid = "net.tdring.pharaoh.tradingoverview";
     internal const string PluginName = "Trading Overview";
-    internal const string PluginVersion = "1.3.0";
+    internal const string PluginVersion = "1.4.0";
 
     private static ManualLogSource log;
     private static bool warned;
     private static bool typographyLogged;
-    private static readonly HashSet<int> AdjustedControls = new HashSet<int>();
 
     private const string ExportLabelName = "TradingOverview.Exported";
     private const string ImportLabelName = "TradingOverview.Imported";
@@ -61,8 +60,8 @@ public sealed class Plugin : BaseUnityPlugin
             imported.text = totals.CanImport
                 ? $"Imp {CompactNumber.Format(totals.Imported)} / {CompactNumber.Format(totals.MaxImport)}"
                 : string.Empty;
-            CompactStatusControl(____dropdownStatus?.transform as RectTransform, 105f);
-            CompactStatusControl(____openTradeButton?.transform as RectTransform, 105f);
+            PinStatusControl(__instance.transform as RectTransform, ____dropdownStatus?.transform as RectTransform);
+            PinStatusControl(__instance.transform as RectTransform, ____openTradeButton?.transform as RectTransform);
         }
         catch (Exception exception)
         {
@@ -123,7 +122,7 @@ public sealed class Plugin : BaseUnityPlugin
                 }
             }
 
-            MoveHeader(header.rectTransform, 105f);
+            AlignStatusHeader(header.rectTransform, status);
             CreateOrUpdateHeader(header, TradeVolumeHeaderName, "Trade Volume (Year / Max)", exported, imported);
         }
         catch (Exception exception)
@@ -223,16 +222,20 @@ public sealed class Plugin : BaseUnityPlugin
         return label;
     }
 
-    private static void CompactStatusControl(RectTransform control, float shift)
+    private static void PinStatusControl(RectTransform row, RectTransform control)
     {
-        if (control == null || !AdjustedControls.Add(control.GetInstanceID()))
+        if (row == null || control == null)
         {
             return;
         }
 
-        var width = control.rect.width;
-        control.SetSizeWithCurrentAnchors(RectTransform.Axis.Horizontal, Math.Max(140f, width - (shift * 2f)));
-        control.anchoredPosition += new Vector2(shift, 0f);
+        var corners = new Vector3[4];
+        row.GetWorldCorners(corners);
+        var left = corners[0].x;
+        var right = corners[3].x;
+        var centerX = Mathf.Lerp(left, right, 0.58f);
+        control.SetSizeWithCurrentAnchors(RectTransform.Axis.Horizontal, row.rect.width * 0.12f);
+        control.position = new Vector3(centerX, control.position.y, control.position.z);
 
         foreach (var text in control.GetComponentsInChildren<TextMeshProUGUI>(true))
         {
@@ -309,14 +312,10 @@ public sealed class Plugin : BaseUnityPlugin
             firstColumn.rect.width + lastColumn.rect.width);
     }
 
-    private static void MoveHeader(RectTransform header, float amount)
+    private static void AlignStatusHeader(RectTransform header, RectTransform status)
     {
-        if (!AdjustedControls.Add(header.GetInstanceID()))
-        {
-            return;
-        }
-
-        header.anchoredPosition += new Vector2(amount, 0f);
+        header.position = new Vector3(status.position.x, header.position.y, header.position.z);
+        header.SetSizeWithCurrentAnchors(RectTransform.Axis.Horizontal, status.rect.width);
     }
 
     private static void LogTypography(CommerceOverseer overseer)
