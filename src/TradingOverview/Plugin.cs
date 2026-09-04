@@ -1,4 +1,5 @@
 using System;
+using System.Collections;
 using System.Collections.Generic;
 using BepInEx;
 using BepInEx.Logging;
@@ -14,11 +15,13 @@ public sealed class Plugin : BaseUnityPlugin
 {
     internal const string PluginGuid = "net.tdring.pharaoh.tradingoverview";
     internal const string PluginName = "Trading Overview";
-    internal const string PluginVersion = "1.5.0";
+    internal const string PluginVersion = "1.6.0";
 
     private static ManualLogSource log;
     private static bool warned;
     private static bool typographyLogged;
+    private static bool layoutLogScheduled;
+    private static Plugin instance;
 
     private const string ExportLabelName = "TradingOverview.Exported";
     private const string ImportLabelName = "TradingOverview.Imported";
@@ -26,6 +29,7 @@ public sealed class Plugin : BaseUnityPlugin
 
     private void Awake()
     {
+        instance = this;
         log = Logger;
         try
         {
@@ -123,6 +127,7 @@ public sealed class Plugin : BaseUnityPlugin
 
             CreateOrUpdateHeader(header, TradeVolumeHeaderName, "Trade Volume (Year / Max)", tradeVolume);
             AlignPriceHeaders(__instance, ____rowContainer, header, firstRow);
+            ScheduleLayoutLog(__instance, ____rowContainer, firstRow);
         }
         catch (Exception exception)
         {
@@ -224,10 +229,10 @@ public sealed class Plugin : BaseUnityPlugin
     private static string FormatTradeVolume(TradeTotals totals)
     {
         var exported = totals.CanExport
-            ? $"Exp {CompactNumber.Format(totals.Exported)} / {CompactNumber.Format(totals.MaxExport)}"
+            ? $"Ex {CompactNumber.Format(totals.Exported)} / {CompactNumber.Format(totals.MaxExport)}"
             : string.Empty;
         var imported = totals.CanImport
-            ? $"Imp {CompactNumber.Format(totals.Imported)} / {CompactNumber.Format(totals.MaxImport)}"
+            ? $"In {CompactNumber.Format(totals.Imported)} / {CompactNumber.Format(totals.MaxImport)}"
             : string.Empty;
 
         if (exported.Length == 0)
@@ -371,5 +376,48 @@ public sealed class Plugin : BaseUnityPlugin
                 $"Typography name='{text.name}', text='{value}', fontSize={text.fontSize:0.##}, "
                 + $"autoSize={text.enableAutoSizing}, min={text.fontSizeMin:0.##}, max={text.fontSizeMax:0.##}");
         }
+    }
+
+    private static void ScheduleLayoutLog(CommerceOverseer overseer, Transform rowContainer, CommerceRow row)
+    {
+        if (layoutLogScheduled || instance == null)
+        {
+            return;
+        }
+
+        layoutLogScheduled = true;
+        instance.StartCoroutine(LogLayoutAfterFrame(overseer, rowContainer, row));
+    }
+
+    private static IEnumerator LogLayoutAfterFrame(CommerceOverseer overseer, Transform rowContainer, CommerceRow row)
+    {
+        yield return new WaitForEndOfFrame();
+        Canvas.ForceUpdateCanvases();
+
+        log?.LogInfo("Commerce layout after end-of-frame canvas rebuild:");
+        foreach (var rect in row.GetComponentsInChildren<RectTransform>(true))
+        {
+            LogRect("row", rect);
+        }
+
+        foreach (var text in overseer.GetComponentsInChildren<TextMeshProUGUI>(true))
+        {
+            if (!text.transform.IsChildOf(rowContainer))
+            {
+                LogRect("header", text.rectTransform, text.text);
+            }
+        }
+    }
+
+    private static void LogRect(string group, RectTransform rect, string text = null)
+    {
+        var corners = new Vector3[4];
+        rect.GetWorldCorners(corners);
+        var value = text?.Replace('\n', ' ').Replace('\r', ' ') ?? string.Empty;
+        log?.LogInfo(
+            $"Layout group={group}, name='{rect.name}', parent='{rect.parent?.name}', text='{value}', "
+            + $"world=({corners[0].x:0.##},{corners[0].y:0.##})-({corners[2].x:0.##},{corners[2].y:0.##}), "
+            + $"anchors=({rect.anchorMin.x:0.###},{rect.anchorMin.y:0.###})-({rect.anchorMax.x:0.###},{rect.anchorMax.y:0.###}), "
+            + $"offsets=({rect.offsetMin.x:0.##},{rect.offsetMin.y:0.##})-({rect.offsetMax.x:0.##},{rect.offsetMax.y:0.##})");
     }
 }

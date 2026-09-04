@@ -13,7 +13,8 @@ for file in \
   "Pharaoh A New Era/Pharaoh_Data/Managed/Unity.TextMeshPro.dll" \
   "Pharaoh A New Era/Pharaoh_Data/Managed/UnityEngine.dll" \
   "Pharaoh A New Era/Pharaoh_Data/Managed/UnityEngine.CoreModule.dll" \
-  "Pharaoh A New Era/Pharaoh_Data/Managed/UnityEngine.UI.dll"
+  "Pharaoh A New Era/Pharaoh_Data/Managed/UnityEngine.UI.dll" \
+  "Pharaoh A New Era/Pharaoh_Data/Managed/UnityEngine.UIModule.dll"
 do
   unzip -j -o "$archive" "$file" -d "$reference_dir"
 done

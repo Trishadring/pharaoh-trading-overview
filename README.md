@@ -4,8 +4,8 @@ Trading Overview is an independent BepInEx plugin for **Pharaoh: A New Era**. It
 
 ```text
 Stored        Status        Input    Trade Volume     Buyers pay   Sellers receive
-                                      Exp 600 / 4K
-                                      Imp 300 / 2.5K
+                                      Ex 600 / 4K
+                                      In 300 / 2.5K
 ```
 
 The first number is the amount traded during the current game year. The second is the total annual amount supported by currently open routes. The game resets the completed amounts at the beginning of each year.
