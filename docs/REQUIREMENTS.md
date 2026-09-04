@@ -9,7 +9,8 @@ Add live trade information to each good in the Commerce Overseer without changin
 The stock Stored value remains unchanged. The mod adds:
 
 ```text
-Exported: 600 / 4,000    Imported: 300 / 2,500
+Stored        Exported      Imported      Status
+1,400        600 / 4,000   300 / 2,500   Exporting surpluses
 ```
 
 - Exported is the amount the player sold during the current game year.
