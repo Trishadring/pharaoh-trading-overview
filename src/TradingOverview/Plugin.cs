@@ -14,16 +14,16 @@ public sealed class Plugin : BaseUnityPlugin
 {
     internal const string PluginGuid = "net.tdring.pharaoh.tradingoverview";
     internal const string PluginName = "Trading Overview";
-    internal const string PluginVersion = "1.1.0";
+    internal const string PluginVersion = "1.2.0";
 
     private static ManualLogSource log;
     private static bool warned;
+    private static bool typographyLogged;
     private static readonly HashSet<int> AdjustedControls = new HashSet<int>();
 
     private const string ExportLabelName = "TradingOverview.Exported";
     private const string ImportLabelName = "TradingOverview.Imported";
-    private const string ExportHeaderName = "TradingOverview.ExportedHeader";
-    private const string ImportHeaderName = "TradingOverview.ImportedHeader";
+    private const string TradeVolumeHeaderName = "TradingOverview.TradeVolumeHeader";
 
     private void Awake()
     {
@@ -46,16 +46,17 @@ public sealed class Plugin : BaseUnityPlugin
         Good good,
         GoodData goodData,
         TextMeshProUGUI ____quantityText,
+        TextMeshProUGUI ____importText,
         TMP_Dropdown ____dropdownStatus,
         Button ____openTradeButton)
     {
         try
         {
             var totals = GetTotals(good, goodData);
-            var exported = GetOrCreateColumn(__instance, ____quantityText, ExportLabelName, 0.275f, 0.365f);
-            var imported = GetOrCreateColumn(__instance, ____quantityText, ImportLabelName, 0.365f, 0.455f);
-            exported.text = $"{totals.Exported:N0} / {totals.MaxExport:N0}";
-            imported.text = $"{totals.Imported:N0} / {totals.MaxImport:N0}";
+            var exported = GetOrCreateColumn(__instance, ____quantityText, ____importText, ExportLabelName, 0.275f, 0.365f);
+            var imported = GetOrCreateColumn(__instance, ____quantityText, ____importText, ImportLabelName, 0.365f, 0.455f);
+            exported.text = $"Exp {totals.Exported:N0} / {totals.MaxExport:N0}";
+            imported.text = $"Imp {totals.Imported:N0} / {totals.MaxImport:N0}";
             CompactStatusControl(____dropdownStatus?.transform as RectTransform);
             CompactStatusControl(____openTradeButton?.transform as RectTransform);
         }
@@ -111,13 +112,14 @@ public sealed class Plugin : BaseUnityPlugin
             {
                 if (!text.transform.IsChildOf(____rowContainer) && Math.Abs(text.transform.position.y - header.transform.position.y) < 5f)
                 {
-                    text.fontSize = Math.Min(text.fontSize, 20f);
+                    text.enableAutoSizing = false;
+                    text.fontSize = 16f;
                 }
             }
 
-            MoveHeader(header.rectTransform, 45f);
-            CreateOrUpdateHeader(header, ExportHeaderName, "Exported", exported);
-            CreateOrUpdateHeader(header, ImportHeaderName, "Imported", imported);
+            MoveHeader(header.rectTransform, 65f);
+            CreateOrUpdateHeader(header, TradeVolumeHeaderName, "Trade Volume (Year / Max)", exported, imported);
+            LogTypography(__instance);
         }
         catch (Exception exception)
         {
@@ -180,6 +182,7 @@ public sealed class Plugin : BaseUnityPlugin
     private static TextMeshProUGUI GetOrCreateColumn(
         CommerceRow row,
         TextMeshProUGUI quantityText,
+        TextMeshProUGUI priceText,
         string name,
         float anchorMin,
         float anchorMax)
@@ -197,9 +200,11 @@ public sealed class Plugin : BaseUnityPlugin
         label.overflowMode = TextOverflowModes.Ellipsis;
         label.raycastTarget = false;
         label.alignment = TextAlignmentOptions.Midline;
-        label.enableAutoSizing = true;
-        label.fontSizeMin = 9f;
-        label.fontSizeMax = Math.Min(label.fontSizeMax, 15f);
+        label.enableAutoSizing = priceText.enableAutoSizing;
+        label.fontSize = priceText.fontSize;
+        label.fontSizeMin = priceText.fontSizeMin;
+        label.fontSizeMax = priceText.fontSizeMax;
+        label.fontStyle = priceText.fontStyle;
 
         var labelTransform = label.rectTransform;
         labelTransform.anchorMin = new Vector2(anchorMin, 0f);
@@ -221,14 +226,14 @@ public sealed class Plugin : BaseUnityPlugin
         }
 
         var width = control.rect.width;
-        control.SetSizeWithCurrentAnchors(RectTransform.Axis.Horizontal, Math.Max(210f, width - 90f));
-        control.anchoredPosition += new Vector2(45f, 0f);
+        control.SetSizeWithCurrentAnchors(RectTransform.Axis.Horizontal, Math.Max(170f, width - 130f));
+        control.anchoredPosition += new Vector2(65f, 0f);
 
         foreach (var text in control.GetComponentsInChildren<TextMeshProUGUI>(true))
         {
             text.enableAutoSizing = true;
-            text.fontSizeMin = 10f;
-            text.fontSizeMax = Math.Min(text.fontSizeMax, 15f);
+            text.fontSizeMin = 9f;
+            text.fontSizeMax = Math.Min(text.fontSizeMax, 14f);
         }
     }
 
@@ -263,20 +268,25 @@ public sealed class Plugin : BaseUnityPlugin
         TextMeshProUGUI template,
         string name,
         string text,
-        RectTransform column)
+        RectTransform firstColumn,
+        RectTransform lastColumn)
     {
         var parent = template.transform.parent;
         var existing = parent.Find(name)?.GetComponent<TextMeshProUGUI>();
         var header = existing ?? Instantiate(template, parent);
         header.name = name;
         header.text = text;
-        header.fontSize = Math.Min(header.fontSize, 20f);
-        header.enableAutoSizing = true;
-        header.fontSizeMin = 12f;
+        header.fontSize = 16f;
+        header.enableAutoSizing = false;
         header.alignment = TextAlignmentOptions.Midline;
         header.raycastTarget = false;
-        header.transform.position = new Vector3(column.position.x, template.transform.position.y, template.transform.position.z);
-        header.rectTransform.SetSizeWithCurrentAnchors(RectTransform.Axis.Horizontal, column.rect.width);
+        var layout = header.GetComponent<LayoutElement>() ?? header.gameObject.AddComponent<LayoutElement>();
+        layout.ignoreLayout = true;
+        var centerX = (firstColumn.position.x + lastColumn.position.x) / 2f;
+        header.transform.position = new Vector3(centerX, template.transform.position.y, template.transform.position.z);
+        header.rectTransform.SetSizeWithCurrentAnchors(
+            RectTransform.Axis.Horizontal,
+            firstColumn.rect.width + lastColumn.rect.width);
     }
 
     private static void MoveHeader(RectTransform header, float amount)
@@ -287,5 +297,23 @@ public sealed class Plugin : BaseUnityPlugin
         }
 
         header.anchoredPosition += new Vector2(amount, 0f);
+    }
+
+    private static void LogTypography(CommerceOverseer overseer)
+    {
+        if (typographyLogged)
+        {
+            return;
+        }
+
+        typographyLogged = true;
+        log?.LogInfo("Commerce Overseer typography after all refresh patches:");
+        foreach (var text in overseer.GetComponentsInChildren<TextMeshProUGUI>(false))
+        {
+            var value = text.text?.Replace('\n', ' ').Replace('\r', ' ') ?? string.Empty;
+            log?.LogInfo(
+                $"Typography name='{text.name}', text='{value}', fontSize={text.fontSize:0.##}, "
+                + $"autoSize={text.enableAutoSizing}, min={text.fontSizeMin:0.##}, max={text.fontSizeMax:0.##}");
+        }
     }
 }

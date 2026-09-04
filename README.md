@@ -3,8 +3,8 @@
 Trading Overview is an independent BepInEx plugin for **Pharaoh: A New Era**. It adds current-year trade progress and the combined annual capacity of open, active trade routes to each Commerce Overseer row.
 
 ```text
-Stored        Exported      Imported      Status
-1,400        600 / 4,000   300 / 2,500   Exporting surpluses
+              Trade Volume (Year / Max)
+Stored        Exp 600 / 4,000   Imp 300 / 2,500   Status
 ```
 
 The first number is the amount traded during the current game year. The second is the total annual amount supported by currently open routes. The game resets the completed amounts at the beginning of each year.
