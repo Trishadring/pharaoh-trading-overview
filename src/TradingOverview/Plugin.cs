@@ -22,8 +22,7 @@ public sealed class Plugin : BaseUnityPlugin
 
     private const string ExportLabelName = "TradingOverview.Exported";
     private const string ImportLabelName = "TradingOverview.Imported";
-    private const string ExportHeaderName = "TradingOverview.ExportedHeader";
-    private const string ImportHeaderName = "TradingOverview.ImportedHeader";
+    private const string TradeVolumeHeaderName = "TradingOverview.TradeVolumeHeader";
 
     private void Awake()
     {
@@ -55,8 +54,8 @@ public sealed class Plugin : BaseUnityPlugin
             var totals = GetTotals(good, goodData);
             var exported = GetOrCreateColumn(__instance, ____quantityText, ____importText, ExportLabelName, 0.275f, 0.365f);
             var imported = GetOrCreateColumn(__instance, ____quantityText, ____importText, ImportLabelName, 0.365f, 0.455f);
-            exported.text = $"{totals.Exported:N0} / {totals.MaxExport:N0}";
-            imported.text = $"{totals.Imported:N0} / {totals.MaxImport:N0}";
+            exported.text = $"Exp {totals.Exported:N0} / {totals.MaxExport:N0}";
+            imported.text = $"Imp {totals.Imported:N0} / {totals.MaxImport:N0}";
             CompactStatusControl(____dropdownStatus?.transform as RectTransform);
             CompactStatusControl(____openTradeButton?.transform as RectTransform);
         }
@@ -117,8 +116,7 @@ public sealed class Plugin : BaseUnityPlugin
             }
 
             MoveHeader(header.rectTransform, 65f);
-            CreateOrUpdateHeader(header, ExportHeaderName, "Exported", exported);
-            CreateOrUpdateHeader(header, ImportHeaderName, "Imported", imported);
+            CreateOrUpdateHeader(header, TradeVolumeHeaderName, "Trade Volume (Year / Max)", exported, imported);
         }
         catch (Exception exception)
         {
@@ -267,7 +265,8 @@ public sealed class Plugin : BaseUnityPlugin
         TextMeshProUGUI template,
         string name,
         string text,
-        RectTransform column)
+        RectTransform firstColumn,
+        RectTransform lastColumn)
     {
         var parent = template.transform.parent;
         var existing = parent.Find(name)?.GetComponent<TextMeshProUGUI>();
@@ -282,8 +281,11 @@ public sealed class Plugin : BaseUnityPlugin
         header.raycastTarget = false;
         var layout = header.GetComponent<LayoutElement>() ?? header.gameObject.AddComponent<LayoutElement>();
         layout.ignoreLayout = true;
-        header.transform.position = new Vector3(column.position.x, template.transform.position.y, template.transform.position.z);
-        header.rectTransform.SetSizeWithCurrentAnchors(RectTransform.Axis.Horizontal, column.rect.width);
+        var centerX = (firstColumn.position.x + lastColumn.position.x) / 2f;
+        header.transform.position = new Vector3(centerX, template.transform.position.y, template.transform.position.z);
+        header.rectTransform.SetSizeWithCurrentAnchors(
+            RectTransform.Axis.Horizontal,
+            firstColumn.rect.width + lastColumn.rect.width);
     }
 
     private static void MoveHeader(RectTransform header, float amount)
