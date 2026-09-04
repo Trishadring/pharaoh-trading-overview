@@ -1,0 +1,5 @@
+artifacts/
+bin/
+obj/
+.game-reference/
+.DS_Store

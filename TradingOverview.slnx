@@ -1,0 +1,4 @@
+<Solution>
+  <Project Path="src/TradingOverview/TradingOverview.csproj" />
+  <Project Path="tests/TradingOverview.Tests/TradingOverview.Tests.csproj" />
+</Solution>
