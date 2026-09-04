@@ -55,8 +55,12 @@ public sealed class Plugin : BaseUnityPlugin
             var totals = GetTotals(good, goodData);
             var exported = GetOrCreateColumn(__instance, ____quantityText, ____importText, ExportLabelName, 0.36f, 0.44f);
             var imported = GetOrCreateColumn(__instance, ____quantityText, ____importText, ImportLabelName, 0.44f, 0.52f);
-            exported.text = $"Exp {totals.Exported:N0} / {totals.MaxExport:N0}";
-            imported.text = $"Imp {totals.Imported:N0} / {totals.MaxImport:N0}";
+            exported.text = totals.CanExport
+                ? $"Exp {CompactNumber.Format(totals.Exported)} / {CompactNumber.Format(totals.MaxExport)}"
+                : string.Empty;
+            imported.text = totals.CanImport
+                ? $"Imp {CompactNumber.Format(totals.Imported)} / {CompactNumber.Format(totals.MaxImport)}"
+                : string.Empty;
             CompactStatusControl(____dropdownStatus?.transform as RectTransform, 105f);
             CompactStatusControl(____openTradeButton?.transform as RectTransform, 105f);
         }

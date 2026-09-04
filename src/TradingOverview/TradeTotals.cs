@@ -31,6 +31,8 @@ internal readonly struct TradeTotals
     internal int MaxImport { get; }
     internal int Exported { get; }
     internal int MaxExport { get; }
+    internal bool CanImport => MaxImport > 0;
+    internal bool CanExport => MaxExport > 0;
 
     internal static TradeTotals Calculate(
         string good,
