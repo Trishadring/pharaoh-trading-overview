@@ -10,8 +10,8 @@ The stock Stored value remains unchanged. The mod adds:
 
 ```text
 Stored        Status        Input    Trade Volume     Buyers pay   Sellers receive
-                                      Exp 600 / 4K
-                                      Imp 300 / 2.5K
+                                      Ex 600 / 4K
+                                      In 300 / 2.5K
 ```
 
 - Exported is the amount the player sold during the current game year.
