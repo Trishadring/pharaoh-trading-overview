@@ -18,6 +18,7 @@ public sealed class Plugin : BaseUnityPlugin
 
     private static ManualLogSource log;
     private static bool warned;
+    private static bool typographyLogged;
     private static readonly HashSet<int> AdjustedControls = new HashSet<int>();
 
     private const string ExportLabelName = "TradingOverview.Exported";
@@ -111,12 +112,14 @@ public sealed class Plugin : BaseUnityPlugin
             {
                 if (!text.transform.IsChildOf(____rowContainer) && Math.Abs(text.transform.position.y - header.transform.position.y) < 5f)
                 {
-                    text.fontSize = Math.Min(text.fontSize, 20f);
+                    text.enableAutoSizing = false;
+                    text.fontSize = 16f;
                 }
             }
 
             MoveHeader(header.rectTransform, 65f);
             CreateOrUpdateHeader(header, TradeVolumeHeaderName, "Trade Volume (Year / Max)", exported, imported);
+            LogTypography(__instance);
         }
         catch (Exception exception)
         {
@@ -274,9 +277,7 @@ public sealed class Plugin : BaseUnityPlugin
         header.name = name;
         header.text = text;
         header.fontSize = 16f;
-        header.enableAutoSizing = true;
-        header.fontSizeMin = 10f;
-        header.fontSizeMax = 16f;
+        header.enableAutoSizing = false;
         header.alignment = TextAlignmentOptions.Midline;
         header.raycastTarget = false;
         var layout = header.GetComponent<LayoutElement>() ?? header.gameObject.AddComponent<LayoutElement>();
@@ -296,5 +297,23 @@ public sealed class Plugin : BaseUnityPlugin
         }
 
         header.anchoredPosition += new Vector2(amount, 0f);
+    }
+
+    private static void LogTypography(CommerceOverseer overseer)
+    {
+        if (typographyLogged)
+        {
+            return;
+        }
+
+        typographyLogged = true;
+        log?.LogInfo("Commerce Overseer typography after all refresh patches:");
+        foreach (var text in overseer.GetComponentsInChildren<TextMeshProUGUI>(false))
+        {
+            var value = text.text?.Replace('\n', ' ').Replace('\r', ' ') ?? string.Empty;
+            log?.LogInfo(
+                $"Typography name='{text.name}', text='{value}', fontSize={text.fontSize:0.##}, "
+                + $"autoSize={text.enableAutoSizing}, min={text.fontSizeMin:0.##}, max={text.fontSizeMax:0.##}");
+        }
     }
 }
