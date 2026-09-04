@@ -14,7 +14,7 @@ public sealed class Plugin : BaseUnityPlugin
 {
     internal const string PluginGuid = "net.tdring.pharaoh.tradingoverview";
     internal const string PluginName = "Trading Overview";
-    internal const string PluginVersion = "1.4.0";
+    internal const string PluginVersion = "1.5.0";
 
     private static ManualLogSource log;
     private static bool warned;
@@ -46,22 +46,22 @@ public sealed class Plugin : BaseUnityPlugin
         GoodData goodData,
         TextMeshProUGUI ____quantityText,
         TextMeshProUGUI ____importText,
-        TMP_Dropdown ____dropdownStatus,
-        Button ____openTradeButton)
+        TextMeshProUGUI ____exportText)
     {
         try
         {
             var totals = GetTotals(good, goodData);
-            var exported = GetOrCreateColumn(__instance, ____quantityText, ____importText, ExportLabelName, 0.36f, 0.44f);
-            var imported = GetOrCreateColumn(__instance, ____quantityText, ____importText, ImportLabelName, 0.44f, 0.52f);
-            exported.text = totals.CanExport
-                ? $"Exp {CompactNumber.Format(totals.Exported)} / {CompactNumber.Format(totals.MaxExport)}"
-                : string.Empty;
-            imported.text = totals.CanImport
-                ? $"Imp {CompactNumber.Format(totals.Imported)} / {CompactNumber.Format(totals.MaxImport)}"
-                : string.Empty;
-            PinStatusControl(__instance.transform as RectTransform, ____dropdownStatus?.transform as RectTransform);
-            PinStatusControl(__instance.transform as RectTransform, ____openTradeButton?.transform as RectTransform);
+            var tradeVolume = GetOrCreateColumn(__instance, ____quantityText, ____importText, ExportLabelName, 0.72f, 0.82f);
+            tradeVolume.text = FormatTradeVolume(totals);
+
+            var obsoleteImportColumn = __instance.transform.Find(ImportLabelName);
+            if (obsoleteImportColumn != null)
+            {
+                obsoleteImportColumn.gameObject.SetActive(false);
+            }
+
+            PinColumn(____importText.rectTransform, 0.82f, 0.91f);
+            PinColumn(____exportText.rectTransform, 0.91f, 1f);
         }
         catch (Exception exception)
         {
@@ -100,9 +100,8 @@ public sealed class Plugin : BaseUnityPlugin
             LogTypography(__instance);
 
             var status = firstRow.TradeRuleSelector?.transform as RectTransform;
-            var exported = firstRow.transform.Find(ExportLabelName) as RectTransform;
-            var imported = firstRow.transform.Find(ImportLabelName) as RectTransform;
-            if (status == null || exported == null || imported == null)
+            var tradeVolume = firstRow.transform.Find(ExportLabelName) as RectTransform;
+            if (status == null || tradeVolume == null)
             {
                 return;
             }
@@ -122,8 +121,8 @@ public sealed class Plugin : BaseUnityPlugin
                 }
             }
 
-            AlignStatusHeader(header.rectTransform, status);
-            CreateOrUpdateHeader(header, TradeVolumeHeaderName, "Trade Volume (Year / Max)", exported, imported);
+            CreateOrUpdateHeader(header, TradeVolumeHeaderName, "Trade Volume (Year / Max)", tradeVolume);
+            AlignPriceHeaders(__instance, ____rowContainer, header, firstRow);
         }
         catch (Exception exception)
         {
@@ -222,27 +221,32 @@ public sealed class Plugin : BaseUnityPlugin
         return label;
     }
 
-    private static void PinStatusControl(RectTransform row, RectTransform control)
+    private static string FormatTradeVolume(TradeTotals totals)
     {
-        if (row == null || control == null)
+        var exported = totals.CanExport
+            ? $"Exp {CompactNumber.Format(totals.Exported)} / {CompactNumber.Format(totals.MaxExport)}"
+            : string.Empty;
+        var imported = totals.CanImport
+            ? $"Imp {CompactNumber.Format(totals.Imported)} / {CompactNumber.Format(totals.MaxImport)}"
+            : string.Empty;
+
+        if (exported.Length == 0)
         {
-            return;
+            return imported;
         }
 
-        var corners = new Vector3[4];
-        row.GetWorldCorners(corners);
-        var left = corners[0].x;
-        var right = corners[3].x;
-        var centerX = Mathf.Lerp(left, right, 0.58f);
-        control.SetSizeWithCurrentAnchors(RectTransform.Axis.Horizontal, row.rect.width * 0.12f);
-        control.position = new Vector3(centerX, control.position.y, control.position.z);
+        return imported.Length == 0 ? exported : exported + "\n" + imported;
+    }
 
-        foreach (var text in control.GetComponentsInChildren<TextMeshProUGUI>(true))
-        {
-            text.enableAutoSizing = true;
-            text.fontSizeMin = 9f;
-            text.fontSizeMax = Math.Min(text.fontSizeMax, 14f);
-        }
+    private static void PinColumn(RectTransform column, float anchorMin, float anchorMax)
+    {
+        column.anchorMin = new Vector2(anchorMin, 0f);
+        column.anchorMax = new Vector2(anchorMax, 1f);
+        column.pivot = new Vector2(0.5f, 0.5f);
+        column.offsetMin = new Vector2(2f, 0f);
+        column.offsetMax = new Vector2(-2f, 0f);
+        var layout = column.GetComponent<LayoutElement>() ?? column.gameObject.AddComponent<LayoutElement>();
+        layout.ignoreLayout = true;
     }
 
     private static TextMeshProUGUI FindStatusHeader(
@@ -291,8 +295,7 @@ public sealed class Plugin : BaseUnityPlugin
         TextMeshProUGUI template,
         string name,
         string text,
-        RectTransform firstColumn,
-        RectTransform lastColumn)
+        RectTransform column)
     {
         var parent = template.transform.parent;
         var existing = parent.Find(name)?.GetComponent<TextMeshProUGUI>();
@@ -305,17 +308,51 @@ public sealed class Plugin : BaseUnityPlugin
         header.raycastTarget = false;
         var layout = header.GetComponent<LayoutElement>() ?? header.gameObject.AddComponent<LayoutElement>();
         layout.ignoreLayout = true;
-        var centerX = (firstColumn.position.x + lastColumn.position.x) / 2f;
-        header.transform.position = new Vector3(centerX, template.transform.position.y, template.transform.position.z);
-        header.rectTransform.SetSizeWithCurrentAnchors(
-            RectTransform.Axis.Horizontal,
-            firstColumn.rect.width + lastColumn.rect.width);
+        header.transform.position = new Vector3(column.position.x, template.transform.position.y, template.transform.position.z);
+        header.rectTransform.SetSizeWithCurrentAnchors(RectTransform.Axis.Horizontal, column.rect.width);
     }
 
-    private static void AlignStatusHeader(RectTransform header, RectTransform status)
+    private static void AlignPriceHeaders(
+        CommerceOverseer overseer,
+        Transform rowContainer,
+        TextMeshProUGUI statusHeader,
+        CommerceRow row)
     {
-        header.position = new Vector3(status.position.x, header.position.y, header.position.z);
-        header.SetSizeWithCurrentAnchors(RectTransform.Axis.Horizontal, status.rect.width);
+        var importText = AccessTools.Field(typeof(CommerceRow), "_importText")?.GetValue(row) as TextMeshProUGUI;
+        var exportText = AccessTools.Field(typeof(CommerceRow), "_exportText")?.GetValue(row) as TextMeshProUGUI;
+        if (importText == null || exportText == null)
+        {
+            return;
+        }
+
+        var priceHeaders = new List<TextMeshProUGUI>();
+        foreach (var text in overseer.GetComponentsInChildren<TextMeshProUGUI>(true))
+        {
+            if (text.name.StartsWith("TradingOverview.", StringComparison.Ordinal)
+                || text.transform.IsChildOf(rowContainer)
+                || text.transform.position.x <= statusHeader.transform.position.x
+                || Math.Abs(text.transform.position.y - statusHeader.transform.position.y) >= 5f)
+            {
+                continue;
+            }
+
+            priceHeaders.Add(text);
+        }
+
+        priceHeaders.Sort((left, right) => left.transform.position.x.CompareTo(right.transform.position.x));
+        if (priceHeaders.Count >= 2)
+        {
+            AlignHeader(priceHeaders[priceHeaders.Count - 2].rectTransform, importText.rectTransform);
+            AlignHeader(priceHeaders[priceHeaders.Count - 1].rectTransform, exportText.rectTransform);
+        }
+    }
+
+    private static void AlignHeader(RectTransform header, RectTransform column)
+    {
+        var layout = header.GetComponent<LayoutElement>() ?? header.gameObject.AddComponent<LayoutElement>();
+        layout.ignoreLayout = true;
+        header.position = new Vector3(column.position.x, header.position.y, header.position.z);
+        header.SetSizeWithCurrentAnchors(RectTransform.Axis.Horizontal, column.rect.width);
     }
 
     private static void LogTypography(CommerceOverseer overseer)
