@@ -14,7 +14,7 @@ public sealed class Plugin : BaseUnityPlugin
 {
     internal const string PluginGuid = "net.tdring.pharaoh.tradingoverview";
     internal const string PluginName = "Trading Overview";
-    internal const string PluginVersion = "1.2.0";
+    internal const string PluginVersion = "1.3.0";
 
     private static ManualLogSource log;
     private static bool warned;
@@ -53,12 +53,12 @@ public sealed class Plugin : BaseUnityPlugin
         try
         {
             var totals = GetTotals(good, goodData);
-            var exported = GetOrCreateColumn(__instance, ____quantityText, ____importText, ExportLabelName, 0.275f, 0.365f);
-            var imported = GetOrCreateColumn(__instance, ____quantityText, ____importText, ImportLabelName, 0.365f, 0.455f);
+            var exported = GetOrCreateColumn(__instance, ____quantityText, ____importText, ExportLabelName, 0.36f, 0.44f);
+            var imported = GetOrCreateColumn(__instance, ____quantityText, ____importText, ImportLabelName, 0.44f, 0.52f);
             exported.text = $"Exp {totals.Exported:N0} / {totals.MaxExport:N0}";
             imported.text = $"Imp {totals.Imported:N0} / {totals.MaxImport:N0}";
-            CompactStatusControl(____dropdownStatus?.transform as RectTransform);
-            CompactStatusControl(____openTradeButton?.transform as RectTransform);
+            CompactStatusControl(____dropdownStatus?.transform as RectTransform, 105f);
+            CompactStatusControl(____openTradeButton?.transform as RectTransform, 105f);
         }
         catch (Exception exception)
         {
@@ -94,6 +94,8 @@ public sealed class Plugin : BaseUnityPlugin
                 return;
             }
 
+            LogTypography(__instance);
+
             var status = firstRow.TradeRuleSelector?.transform as RectTransform;
             var exported = firstRow.transform.Find(ExportLabelName) as RectTransform;
             var imported = firstRow.transform.Find(ImportLabelName) as RectTransform;
@@ -117,9 +119,8 @@ public sealed class Plugin : BaseUnityPlugin
                 }
             }
 
-            MoveHeader(header.rectTransform, 65f);
+            MoveHeader(header.rectTransform, 105f);
             CreateOrUpdateHeader(header, TradeVolumeHeaderName, "Trade Volume (Year / Max)", exported, imported);
-            LogTypography(__instance);
         }
         catch (Exception exception)
         {
@@ -218,7 +219,7 @@ public sealed class Plugin : BaseUnityPlugin
         return label;
     }
 
-    private static void CompactStatusControl(RectTransform control)
+    private static void CompactStatusControl(RectTransform control, float shift)
     {
         if (control == null || !AdjustedControls.Add(control.GetInstanceID()))
         {
@@ -226,8 +227,8 @@ public sealed class Plugin : BaseUnityPlugin
         }
 
         var width = control.rect.width;
-        control.SetSizeWithCurrentAnchors(RectTransform.Axis.Horizontal, Math.Max(170f, width - 130f));
-        control.anchoredPosition += new Vector2(65f, 0f);
+        control.SetSizeWithCurrentAnchors(RectTransform.Axis.Horizontal, Math.Max(140f, width - (shift * 2f)));
+        control.anchoredPosition += new Vector2(shift, 0f);
 
         foreach (var text in control.GetComponentsInChildren<TextMeshProUGUI>(true))
         {
@@ -242,6 +243,15 @@ public sealed class Plugin : BaseUnityPlugin
         Transform rowContainer,
         RectTransform status)
     {
+        foreach (var text in overseer.GetComponentsInChildren<TextMeshProUGUI>(true))
+        {
+            if (!text.transform.IsChildOf(rowContainer)
+                && string.Equals(text.text?.Trim(), "Status", StringComparison.OrdinalIgnoreCase))
+            {
+                return text;
+            }
+        }
+
         TextMeshProUGUI closest = null;
         var distance = float.MaxValue;
         foreach (var text in overseer.GetComponentsInChildren<TextMeshProUGUI>(true))
@@ -249,6 +259,12 @@ public sealed class Plugin : BaseUnityPlugin
             if (text.name.StartsWith("TradingOverview.", StringComparison.Ordinal)
                 || text.transform.IsChildOf(rowContainer)
                 || text.transform.position.y <= status.position.y)
+            {
+                continue;
+            }
+
+            var verticalDistance = text.transform.position.y - status.position.y;
+            if (verticalDistance > 150f)
             {
                 continue;
             }
