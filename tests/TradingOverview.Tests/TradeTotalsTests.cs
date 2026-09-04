@@ -22,6 +22,8 @@ public sealed class TradeTotalsTests
         Assert.Equal(4000, result.MaxImport);
         Assert.Equal(600, result.Exported);
         Assert.Equal(4000, result.MaxExport);
+        Assert.True(result.CanImport);
+        Assert.True(result.CanExport);
     }
 
     [Fact]
@@ -31,6 +33,19 @@ public sealed class TradeTotalsTests
 
         Assert.Equal(0, result.MaxImport);
         Assert.Equal(0, result.MaxExport);
+        Assert.False(result.CanImport);
+        Assert.False(result.CanExport);
+    }
+
+    [Fact]
+    public void ReportsOnlyTheAvailableTradeDirection()
+    {
+        var routes = new[] { new RouteTrade("Grain", playerImports: false, annualCapacity: 1500) };
+
+        var result = TradeTotals.Calculate("Grain", imported: 0, exported: 200, individualUnits: false, routes);
+
+        Assert.False(result.CanImport);
+        Assert.True(result.CanExport);
     }
 
     [Fact]

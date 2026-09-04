@@ -18,7 +18,9 @@ Stored        Exp 600 / 4,000   Imp 300 / 2,500   Status
 - Each maximum is the combined annual capacity of open, currently active routes for that direction.
 - Closed and unopened routes do not contribute to capacity.
 - Completed values reset through the game's normal yearly update.
-- A good with no applicable trade displays `0 / 0`.
+- A trade direction is blank when no open, active route supports it.
+- A good with no applicable import or export route has both trade cells blank.
+- Values of 1,000 or more use compact notation with at most one decimal, such as `1K` or `1.5K`.
 
 ## Behavior
 

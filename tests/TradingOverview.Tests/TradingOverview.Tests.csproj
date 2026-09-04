@@ -11,6 +11,7 @@
   </ItemGroup>
 
   <ItemGroup>
+    <Compile Include="../../src/TradingOverview/CompactNumber.cs" Link="CompactNumber.cs" />
     <Compile Include="../../src/TradingOverview/TradeTotals.cs" Link="TradeTotals.cs" />
   </ItemGroup>
 </Project>
