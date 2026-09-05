@@ -9,4 +9,4 @@ mkdir -p "$package_root/BepInEx/plugins/TradingOverview"
 cp "$project_root/src/TradingOverview/bin/Release/TradingOverview.dll" "$package_root/BepInEx/plugins/TradingOverview/"
 
 cd "$package_root"
-zip -r "../TradingOverview-1.7.0.zip" BepInEx
+zip -r "../TradingOverview-1.7.0-rc.5.zip" BepInEx
