@@ -16,7 +16,7 @@ public sealed class Plugin : BaseUnityPlugin
     internal const string PluginGuid = "net.tdring.pharaoh.tradingoverview";
     internal const string PluginName = "Trading Overview";
     // BepInEx 5 requires a numeric System.Version even for prerelease builds.
-    internal const string PluginVersion = "1.7.0.2";
+    internal const string PluginVersion = "1.7.0.3";
 
     private static ManualLogSource log;
     private static bool warned;
@@ -385,6 +385,9 @@ public sealed class Plugin : BaseUnityPlugin
             PositionInRow(rowRect, tradeVolume, 0.73f, 0.82f);
             PositionInRow(rowRect, importText.rectTransform, 0.82f, 0.90f);
             PositionInRow(rowRect, exportText.rectTransform, 0.90f, 0.98f);
+            SetFixedFontSize(tradeVolume.GetComponent<TextMeshProUGUI>(), 13f);
+            SetFixedFontSize(importText, 13f);
+            SetFixedFontSize(exportText, 13f);
         }
 
         if (firstRow != null)
@@ -395,14 +398,28 @@ public sealed class Plugin : BaseUnityPlugin
             if (rowRect != null && tradeHeader != null)
             {
                 PositionInRow(rowRect, tradeHeader.rectTransform, 0.73f, 0.82f);
+                SetFixedFontSize(tradeHeader, 14f);
             }
             if (rowRect != null && priceHeaders.Count == 2)
             {
                 PositionInRow(rowRect, priceHeaders[0].rectTransform, 0.82f, 0.90f);
                 PositionInRow(rowRect, priceHeaders[1].rectTransform, 0.90f, 0.98f);
+                SetFixedFontSize(priceHeaders[0], 14f);
+                SetFixedFontSize(priceHeaders[1], 14f);
             }
         }
 
         layoutScheduled = false;
+    }
+
+    private static void SetFixedFontSize(TextMeshProUGUI text, float size)
+    {
+        if (text == null)
+        {
+            return;
+        }
+
+        text.enableAutoSizing = false;
+        text.fontSize = size;
     }
 }
