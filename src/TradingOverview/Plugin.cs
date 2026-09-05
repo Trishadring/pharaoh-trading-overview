@@ -16,7 +16,7 @@ public sealed class Plugin : BaseUnityPlugin
     internal const string PluginGuid = "net.tdring.pharaoh.tradingoverview";
     internal const string PluginName = "Trading Overview";
     // BepInEx 5 requires a numeric System.Version even for prerelease builds.
-    internal const string PluginVersion = "1.7.0.4";
+    internal const string PluginVersion = "1.7.0.5";
 
     private static ManualLogSource log;
     private static bool warned;
@@ -382,14 +382,18 @@ public sealed class Plugin : BaseUnityPlugin
             var tradeVolume = row.transform.Find(ExportLabelName) as RectTransform;
             var importText = AccessTools.Field(typeof(CommerceRow), "_importText")?.GetValue(row) as TextMeshProUGUI;
             var exportText = AccessTools.Field(typeof(CommerceRow), "_exportText")?.GetValue(row) as TextMeshProUGUI;
+            var quantityPart = AccessTools.Field(typeof(CommerceRow), "_quantityPart")?.GetValue(row) as GameObject;
             if (rowRect == null || tradeVolume == null || importText == null || exportText == null)
             {
                 continue;
             }
 
-            PositionInRow(rowRect, tradeVolume, 0.73f, 0.82f);
-            PositionInRow(rowRect, importText.rectTransform, 0.82f, 0.90f);
-            PositionInRow(rowRect, exportText.rectTransform, 0.90f, 0.98f);
+            PositionInRow(rowRect, row.TradeRuleSelector?.transform as RectTransform, 0.38f, 0.59f);
+            PositionInRow(rowRect, row.OpenTradeButton?.transform as RectTransform, 0.38f, 0.59f);
+            PositionInRow(rowRect, quantityPart?.transform as RectTransform, 0.60f, 0.68f);
+            PositionInRow(rowRect, tradeVolume, 0.69f, 0.80f);
+            PositionInRow(rowRect, importText.rectTransform, 0.80f, 0.88f);
+            PositionInRow(rowRect, exportText.rectTransform, 0.88f, 0.96f);
             SetFixedFontSize(tradeVolume.GetComponent<TextMeshProUGUI>(), 13f);
             SetFixedFontSize(importText, 13f);
             SetFixedFontSize(exportText, 13f);
@@ -398,17 +402,25 @@ public sealed class Plugin : BaseUnityPlugin
         if (firstRow != null)
         {
             var rowRect = firstRow.transform as RectTransform;
-            var tradeHeader = statusHeader.transform.parent.Find(TradeVolumeHeaderName)?.GetComponent<TextMeshProUGUI>();
+            TextMeshProUGUI tradeHeader = null;
+            foreach (var text in overseer.GetComponentsInChildren<TextMeshProUGUI>(true))
+            {
+                if (text.name == TradeVolumeHeaderName)
+                {
+                    tradeHeader = text;
+                    break;
+                }
+            }
             var priceHeaders = FindPriceHeaders(overseer, rowContainer, statusHeader);
             if (rowRect != null && tradeHeader != null)
             {
-                PositionInRow(rowRect, tradeHeader.rectTransform, 0.73f, 0.82f);
+                PositionInRow(rowRect, tradeHeader.rectTransform, 0.69f, 0.80f);
                 SetFixedFontSize(tradeHeader, 14f);
             }
             if (rowRect != null && priceHeaders.Count == 2)
             {
-                PositionInRow(rowRect, priceHeaders[0].rectTransform, 0.82f, 0.90f);
-                PositionInRow(rowRect, priceHeaders[1].rectTransform, 0.90f, 0.98f);
+                PositionInRow(rowRect, priceHeaders[0].rectTransform, 0.80f, 0.88f);
+                PositionInRow(rowRect, priceHeaders[1].rectTransform, 0.88f, 0.96f);
                 SetFixedFontSize(priceHeaders[0], 14f);
                 SetFixedFontSize(priceHeaders[1], 14f);
             }
