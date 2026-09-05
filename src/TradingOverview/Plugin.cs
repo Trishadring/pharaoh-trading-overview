@@ -16,7 +16,7 @@ public sealed class Plugin : BaseUnityPlugin
     internal const string PluginGuid = "net.tdring.pharaoh.tradingoverview";
     internal const string PluginName = "Trading Overview";
     // BepInEx 5 requires a numeric System.Version even for prerelease builds.
-    internal const string PluginVersion = "1.7.0.1";
+    internal const string PluginVersion = "1.7.0.2";
 
     private static ManualLogSource log;
     private static bool warned;
@@ -383,8 +383,8 @@ public sealed class Plugin : BaseUnityPlugin
             }
 
             PositionInRow(rowRect, tradeVolume, 0.73f, 0.82f);
-            PositionInRow(rowRect, importText.rectTransform, 0.82f, 0.91f);
-            PositionInRow(rowRect, exportText.rectTransform, 0.91f, 1f);
+            PositionInRow(rowRect, importText.rectTransform, 0.82f, 0.90f);
+            PositionInRow(rowRect, exportText.rectTransform, 0.90f, 0.98f);
         }
 
         if (firstRow != null)
@@ -398,8 +398,8 @@ public sealed class Plugin : BaseUnityPlugin
             }
             if (rowRect != null && priceHeaders.Count == 2)
             {
-                PositionInRow(rowRect, priceHeaders[0].rectTransform, 0.82f, 0.91f);
-                PositionInRow(rowRect, priceHeaders[1].rectTransform, 0.91f, 1f);
+                PositionInRow(rowRect, priceHeaders[0].rectTransform, 0.82f, 0.90f);
+                PositionInRow(rowRect, priceHeaders[1].rectTransform, 0.90f, 0.98f);
             }
         }
 
