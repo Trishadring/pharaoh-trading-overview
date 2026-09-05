@@ -4,7 +4,7 @@ Trading Overview is an independent BepInEx plugin for **Pharaoh: A New Era**. It
 
 The project is currently in release-candidate testing. Builds use `-rc.N` versions until the Commerce layout has been verified in-game on Windows.
 
-BepInEx displays RC 3 as numeric plugin version `1.7.0.3`; the GitHub release and package use `1.7.0-rc.3`.
+BepInEx displays RC 4 as numeric plugin version `1.7.0.4`; the GitHub release and package use `1.7.0-rc.4`.
 
 ```text
 Stored        Status        Input    Trade Volume     Buyers pay   Sellers receive

@@ -16,7 +16,7 @@ public sealed class Plugin : BaseUnityPlugin
     internal const string PluginGuid = "net.tdring.pharaoh.tradingoverview";
     internal const string PluginName = "Trading Overview";
     // BepInEx 5 requires a numeric System.Version even for prerelease builds.
-    internal const string PluginVersion = "1.7.0.3";
+    internal const string PluginVersion = "1.7.0.4";
 
     private static ManualLogSource log;
     private static bool warned;
@@ -331,6 +331,11 @@ public sealed class Plugin : BaseUnityPlugin
 
     private static void PositionInRow(RectTransform row, RectTransform element, float start, float end)
     {
+        if (element == null)
+        {
+            return;
+        }
+
         var layout = element.GetComponent<LayoutElement>() ?? element.gameObject.AddComponent<LayoutElement>();
         layout.ignoreLayout = true;
         var corners = new Vector3[4];
