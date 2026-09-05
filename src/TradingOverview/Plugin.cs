@@ -15,7 +15,7 @@ public sealed class Plugin : BaseUnityPlugin
 {
     internal const string PluginGuid = "net.tdring.pharaoh.tradingoverview";
     internal const string PluginName = "Trading Overview";
-    internal const string PluginVersion = "1.7.0";
+    internal const string PluginVersion = "1.7.0-rc.1";
 
     private static ManualLogSource log;
     private static bool warned;

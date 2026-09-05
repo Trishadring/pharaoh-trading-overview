@@ -2,6 +2,8 @@
 
 Trading Overview is an independent BepInEx plugin for **Pharaoh: A New Era**. It adds current-year trade progress and the combined annual capacity of open, active trade routes to each Commerce Overseer row.
 
+The project is currently in release-candidate testing. Builds use `-rc.N` versions until the Commerce layout has been verified in-game on Windows.
+
 ```text
 Stored        Status        Input    Trade Volume     Buyers pay   Sellers receive
                                       Ex 600 / 4K
