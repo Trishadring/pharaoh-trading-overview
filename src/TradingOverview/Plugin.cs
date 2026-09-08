@@ -16,7 +16,7 @@ public sealed class Plugin : BaseUnityPlugin
     internal const string PluginGuid = "net.tdring.pharaoh.tradingoverview";
     internal const string PluginName = "Trading Overview";
     // BepInEx 5 requires a numeric System.Version even for prerelease builds.
-    internal const string PluginVersion = "1.7.0.5";
+    internal const string PluginVersion = "1.7.0.6";
 
     private static ManualLogSource log;
     private static bool warned;
@@ -401,7 +401,6 @@ public sealed class Plugin : BaseUnityPlugin
 
         if (firstRow != null)
         {
-            var rowRect = firstRow.transform as RectTransform;
             TextMeshProUGUI tradeHeader = null;
             foreach (var text in overseer.GetComponentsInChildren<TextMeshProUGUI>(true))
             {
@@ -412,21 +411,49 @@ public sealed class Plugin : BaseUnityPlugin
                 }
             }
             var priceHeaders = FindPriceHeaders(overseer, rowContainer, statusHeader);
-            if (rowRect != null && tradeHeader != null)
+            var statusControl = firstRow.TradeRuleSelector?.transform as RectTransform;
+            var tradeVolume = firstRow.transform.Find(ExportLabelName) as RectTransform;
+            var importText = AccessTools.Field(typeof(CommerceRow), "_importText")?.GetValue(firstRow) as TextMeshProUGUI;
+            var exportText = AccessTools.Field(typeof(CommerceRow), "_exportText")?.GetValue(firstRow) as TextMeshProUGUI;
+
+            AlignHeaderToElement(statusHeader.rectTransform, statusControl);
+            if (tradeHeader != null)
             {
-                PositionInRow(rowRect, tradeHeader.rectTransform, 0.69f, 0.80f);
+                AlignHeaderToElement(tradeHeader.rectTransform, tradeVolume);
                 SetFixedFontSize(tradeHeader, 14f);
             }
-            if (rowRect != null && priceHeaders.Count == 2)
+            if (priceHeaders.Count == 2 && importText != null && exportText != null)
             {
-                PositionInRow(rowRect, priceHeaders[0].rectTransform, 0.80f, 0.88f);
-                PositionInRow(rowRect, priceHeaders[1].rectTransform, 0.88f, 0.96f);
+                AlignHeaderToElement(priceHeaders[0].rectTransform, importText.rectTransform);
+                AlignHeaderToElement(priceHeaders[1].rectTransform, exportText.rectTransform);
                 SetFixedFontSize(priceHeaders[0], 14f);
                 SetFixedFontSize(priceHeaders[1], 14f);
             }
         }
 
         layoutScheduled = false;
+    }
+
+    private static void AlignHeaderToElement(RectTransform header, RectTransform element)
+    {
+        if (header == null || element == null)
+        {
+            return;
+        }
+
+        var corners = new Vector3[4];
+        element.GetWorldCorners(corners);
+        var worldWidth = corners[3].x - corners[0].x;
+        var parentScale = Math.Abs(header.parent.lossyScale.x);
+        var localWidth = parentScale > 0f ? worldWidth / parentScale : worldWidth;
+
+        var layout = header.GetComponent<LayoutElement>() ?? header.gameObject.AddComponent<LayoutElement>();
+        layout.ignoreLayout = true;
+        header.SetSizeWithCurrentAnchors(RectTransform.Axis.Horizontal, localWidth);
+        header.position = new Vector3(
+            (corners[0].x + corners[3].x) / 2f,
+            header.position.y,
+            header.position.z);
     }
 
     private static void SetFixedFontSize(TextMeshProUGUI text, float size)
